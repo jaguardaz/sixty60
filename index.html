@@ -79,12 +79,12 @@
     const notifEl = document.getElementById('speedNotification');
 
     // --- CONFIGURATION ---
-    const GRAVITY = 0.25;       // Low gravity for easier control
-    const JUMP = -6.5;          // Gentle jump
-    const START_SPEED = 2.0;    
-    const MAX_SPEED = 6.0;      
-    const SPEED_STEP = 0.5;     
-    const SPEED_MILESTONE = 5;  
+    const GRAVITY = 0.25;      // Low gravity for easier control
+    const JUMP = -6.5;         // Gentle jump
+    const START_SPEED = 2.0;   
+    const MAX_SPEED = 6.0;     
+    const SPEED_STEP = 0.5;    
+    const SPEED_MILESTONE = 5; 
     
     // --- STATE ---
     let gameRunning = false;
@@ -110,8 +110,11 @@
     function drawClouds() {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
         clouds.forEach(c => {
-            c.x -= speed * 0.5;
-            if(c.x < -100) c.x = canvas.width + 100;
+            // Updated movement logic to handle frame lag more gracefully
+            if (gameRunning) {
+                c.x -= speed * 0.5;
+                if(c.x < -100) c.x = canvas.width + 100;
+            }
             
             ctx.beginPath();
             ctx.arc(c.x, c.y, 30, 0, Math.PI * 2);
@@ -121,11 +124,16 @@
         });
     }
 
+    // Simplified and robust drawBike function
     function drawBike(x, y, rot) {
+        // Use a known center point for rotation
+        const centerX = x + 30;
+        const centerY = y + 25;
+        
         ctx.save();
-        ctx.translate(x + 30, y + 25);
+        ctx.translate(centerX, centerY);
         ctx.rotate(rot);
-        ctx.translate(-(x + 30), -(y + 25));
+        ctx.translate(-centerX, -centerY);
 
         // 1. The Bike Body (Teal)
         ctx.fillStyle = '#0088AA';
@@ -141,128 +149,4 @@
         // 3. Wheels (Black)
         ctx.fillStyle = '#111';
         ctx.beginPath(); ctx.arc(x + 10, y + 40, 10, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 50, y + 40, 10, 0, Math.PI*2); ctx.fill(); 
-        
-        // 4. Rims (Silver)
-        ctx.fillStyle = '#CCC';
-        ctx.beginPath(); ctx.arc(x + 10, y + 40, 4, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 50, y + 40, 4, 0, Math.PI*2); ctx.fill();
-
-        // 5. Headlight (Yellow)
-        ctx.fillStyle = '#FFCC00';
-        ctx.beginPath(); ctx.arc(x + 52, y + 15, 5, 0, Math.PI*2); ctx.fill();
-
-        ctx.restore();
-    }
-
-    function drawCityPipes() {
-        pipes.forEach(p => {
-            // Draw Pipe Body (Building Grey)
-            ctx.fillStyle = '#444';
-            ctx.fillRect(p.x, 0, p.w, p.top);
-            ctx.fillRect(p.x, canvas.height - p.bottom, p.w, p.bottom);
-
-            // Draw Windows (Yellow/Black grid)
-            ctx.fillStyle = '#FFCC00';
-            
-            // Windows for Top Building
-            for(let i = 20; i < p.top - 20; i += 40) {
-                ctx.fillRect(p.x + 10, i, 10, 20);
-                ctx.fillRect(p.x + 30, i, 10, 20);
-            }
-            
-            // Windows for Bottom Building
-            for(let i = canvas.height - p.bottom + 20; i < canvas.height - 10; i += 40) {
-                ctx.fillRect(p.x + 10, i, 10, 20);
-                ctx.fillRect(p.x + 30, i, 10, 20);
-            }
-            
-            // Roof details
-            ctx.fillStyle = '#222';
-            ctx.fillRect(p.x - 5, p.top - 10, p.w + 10, 10);
-            ctx.fillRect(p.x - 5, canvas.height - p.bottom, p.w + 10, 10);
-        });
-    }
-
-    // --- GAME LOGIC ---
-
-    function init() {
-        bike.y = 300;
-        bike.velocity = 0;
-        bike.rotation = 0;
-        score = 0;
-        speed = START_SPEED;
-        pipes = [];
-        frames = 0;
-        gameOver = false;
-        gameRunning = false;
-        
-        // Init Clouds
-        clouds = [];
-        for(let i=0; i<5; i++) {
-            clouds.push({ x: Math.random() * 800, y: Math.random() * 300 + 50 });
-        }
-        
-        scoreEl.innerText = score;
-        speedEl.innerText = speed.toFixed(1);
-        notifEl.style.display = 'none';
-        
-        draw();
-        
-        // Show Start Text
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(0,0,800,600);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = '40px Arial Black';
-        ctx.textAlign = 'center';
-        ctx.fillText("TAP OR CLICK TO DELIVER", 400, 300);
-        ctx.font = '20px Arial';
-        ctx.fillText("Avoid the buildings!", 400, 340);
-    }
-
-    function jumpInput() {
-        if (!gameRunning) {
-            gameRunning = true;
-            loop();
-            return;
-        }
-        if (gameOver) {
-            init();
-            return;
-        }
-        bike.velocity = JUMP;
-    }
-
-    // NEW: EVENT LISTENERS FOR MOBILE/PC
-    document.addEventListener('mousedown', jumpInput);
-    document.addEventListener('keydown', (e) => {
-        if (e.code === 'Space' || e.code === 'ArrowUp') jumpInput();
-    });
-    canvas.addEventListener('touchstart', (e) => { // Handles touch input
-        e.preventDefault(); 
-        jumpInput();
-    });
-    // END NEW LISTENERS
-
-    function update() {
-        if (gameOver) return;
-
-        // 1. Physics
-        bike.velocity += GRAVITY;
-        bike.y += bike.velocity;
-
-        // Rotation based on velocity
-        bike.rotation = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, (bike.velocity * 0.1)));
-
-        // 2. Pipe Spawning
-        if (frames % Math.floor(250 / speed) === 0) {
-            let gap = 180;
-            let minPipe = 50;
-            let maxPipe = canvas.height - gap - minPipe;
-            let topH = Math.floor(Math.random() * (maxPipe - minPipe + 1)) + minPipe;
-            
-            pipes.push({ x: canvas.width, w: 50, top: topH, bottom: canvas.height - (topH + gap), passed: false });
-        }
-
-        // 3. Move Pipes
-        pipes.forEach(p => p.x -= speed
+        ctx.beginPath(); ctx.arc(x + 50, y + 40, 10, 0, Math.PI*2
